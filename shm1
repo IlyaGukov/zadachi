@@ -1,0 +1,128 @@
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#define BUF_SIZE 14
+char* normal_strcat(char* s1, char* s2, int size, int rr)
+{
+    int i = 0;
+	for(;i<rr;i++) s1[i + size*BUF_SIZE] = s2[i];
+    return s1;
+}
+int error(char* s)
+{ 
+    int n;
+    n = strlen(s);
+    write(2,s,n+1);
+    return 0;
+}
+int main(int argc, char** argv)
+{
+    char *proc_data, *buf_string, *shm;
+    int shmid, fd[2], fr, result, m, i = 0, counter = 0;
+    key_t key;
+    char pathname[] = "1.c";
+    if (argc < 2)
+    {
+	printf("not enough arguments \n");
+	exit(-1);
+    }
+    if ((key = ftok(pathname,0)) <0)
+    {
+	printf("key generating error \n");
+	exit(-1);
+    }
+    if (pipe(fd)<0)
+    {
+	printf("creating pipe error \n");
+	exit(-1);
+    }
+    if (dup2(fd[0],0) < 0 || dup2(fd[1],1) < 0) 
+    {
+	printf("dup error \n");
+	exit(-1);
+    }
+    if (close(fd[0]) < 0 || close(fd[1]) < 0)
+    {
+	printf("close error \n");
+	exit(-1);
+    }
+    fr=fork();
+    if (fr<0)
+    {
+	error("fork error \n");
+	exit(-1);
+    }
+    if (fr==0)
+    {
+    	if (close(0) < 0)
+	{
+	    error("close error again");
+	    exit(-1);
+	}
+	execl("/bin/ps","/bin/ps", argv[1], NULL);
+	error("execl error");
+	exit(-1);
+    }
+    if (fr > 0)
+    {
+	proc_data = (char*)malloc(BUF_SIZE*sizeof(char));
+	buf_string = (char*)malloc(BUF_SIZE*sizeof(char));
+	if (close(1) < 0)
+	{
+	    error ("close error very again \n");
+	    exit(-1);
+	}
+	while ((result = read(0,buf_string,BUF_SIZE)) > 0)
+	{ 
+	    proc_data = realloc(proc_data,((counter+1)*BUF_SIZE)*sizeof(char));
+	    normal_strcat(proc_data,buf_string,counter,result);
+	    counter++; 
+	}
+	if (result < 0)
+	{
+	    error ("read error \n");
+	    exit(-1);
+	}
+	//m = (strlen(proc_data));
+	m = (counter-1)*BUF_SIZE + result + 2; 
+    }
+    proc_data = realloc(proc_data,(m)*sizeof(char));
+    free(buf_string);
+    umask(0);
+    if ((shmid = shmget(key, m*sizeof(char),0666|IPC_CREAT|IPC_EXCL)) < 0)
+    {
+	if (errno != EEXIST)
+	{
+	    error("creating shared memory error \n");
+	    exit(-1);
+	}
+	else
+	{
+	    if ((shmid = shmget(key, m*sizeof(char),0)) < 0)
+	    {
+	    error ("cannot find shared memmory \n");
+	    exit(-1);
+	    }
+	}
+    }
+    if (( shm = (char*)shmat(shmid,NULL,0)) == (char*)(-1))
+    {
+	  error("cannot attach shared memory \n");
+	  exit(-1);
+    }
+    for (;i<m; i++) shm[i] = proc_data[i];
+    free(proc_data);
+    if (shmdt(shm) < 0) 
+    {
+	  error("cannot deattach \n");
+	  exit(-1);
+    }
+    return 0;
+}
