@@ -1,0 +1,54 @@
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/shm.h>
+#include <fcntl.h>
+int main()
+{
+    char *shm;
+    int shmid;
+    char pathname[] = "1.c";
+    key_t key;
+    int i=1;
+    if ((key = ftok(pathname,0)) < 0)
+    {
+	printf("cannot generate key \n");
+	exit(-1);
+    }
+    if (shmid=(shmget(key,i*sizeof(char),0)) < 0)
+	{
+	    printf("cannot find shared memory \n");
+	    exit(-1);
+	    if (errno != EEXIST)
+	    {
+		printf("shared memory does not exist \n");
+		exit(-1);
+	    }
+	}
+
+    while (errno != EINVAL)
+    {
+	shmid=(shmget(key,i*sizeof(char),0));
+
+    	i++;
+    } 
+    shmid=(shmget(key,(i-2)*sizeof(char),0));
+
+    if (( shm = (char*)shmat(shmid,NULL,0)) == (char*)(-1))
+    {
+	printf("cannot attach shared memory \n");
+	exit(-1);
+    }
+    write(1,shm,i+1);
+    if (shmctl(shmid,IPC_RMID,NULL) < 0)
+    {
+	printf("cannot delete shared memory \n");
+	exit(-1);
+    }
+printf("\n");
+    return 0;
+} 
