@@ -19,6 +19,8 @@ int main()
 	printf("cannot generate key \n");
 	exit(-1);
     }
+    
+    // AP: размер sahred memory не 1 - почему работает?
     if (shmid=(shmget(key,i*sizeof(char),0)) < 0)
 	{
 	    printf("cannot find shared memory \n");
