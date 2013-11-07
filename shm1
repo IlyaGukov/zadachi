@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #define BUF_SIZE 14
+
+// AP: в чем вам не понравилась обычная strcat?
 char* normal_strcat(char* s1, char* s2, int size, int rr)
 {
     int i = 0;
@@ -117,6 +119,7 @@ int main(int argc, char** argv)
 	  error("cannot attach shared memory \n");
 	  exit(-1);
     }
+    //AP: есть функция strcpy - воспльзуйтесь ей
     for (;i<m; i++) shm[i] = proc_data[i];
     free(proc_data);
     if (shmdt(shm) < 0) 
